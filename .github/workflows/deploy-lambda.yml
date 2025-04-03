@@ -1,0 +1,40 @@
+name: Deploy Lambda with AWS SAM
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Checkout the repository
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # Configure AWS credentials
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v3
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    # Set up AWS SAM CLI
+    - name: Set up AWS SAM CLI
+      uses: aws-actions/setup-sam@v2
+      with:
+        version: latest
+
+    # Build the SAM application
+    - name: Build SAM application
+      run: sam build --template sam/template.yaml
+
+    # Deploy the SAM application
+    - name: Deploy SAM application
+      run: |
+        sam deploy --template-file .aws-sam/build/template.yaml \
+                   --stack-name your-lambda-stack-name \
+                   --capabilities CAPABILITY_IAM

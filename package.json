@@ -1,0 +1,15 @@
+{
+  "name": "aws-lambda-project",
+  "version": "1.0.0",
+  "description": "A simple AWS Lambda project",
+  "main": "src/handler.js",
+  "scripts": {
+    "deploy": "aws lambda update-function-code --function-name your-function-name --zip-file fileb://function.zip",
+    "build": "zip -r function.zip src"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1000.0"
+  },
+  "author": "Your Name",
+  "license": "MIT"
+}
