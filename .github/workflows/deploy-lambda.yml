@@ -33,8 +33,9 @@ jobs:
       run: sam build --template sam/template.yaml
 
     # Deploy the SAM application
-    - name: Deploy SAM application
+    - name: Deploy the SAM application
       run: |
         sam deploy --template-file .aws-sam/build/template.yaml \
                    --stack-name your-lambda-stack-name \
-                   --capabilities CAPABILITY_IAM
+                   --capabilities CAPABILITY_IAM \
+                   --resolve-s3
