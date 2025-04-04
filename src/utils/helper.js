@@ -1,4 +1,4 @@
-function formatResponse(statusCode, body) {
+export function formatResponse(statusCode, body) {
     return {
         statusCode: statusCode,
         body: JSON.stringify(body),
@@ -7,7 +7,3 @@ function formatResponse(statusCode, body) {
         },
     };
 }
-
-module.exports = {
-    formatResponse,
-};

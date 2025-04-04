@@ -1,4 +1,4 @@
-exports.lambdaHandler = async (event, context) => {
+export async function lambdaHandler(event, context) {
     console.log("Hello World CRON");
     return {
         statusCode: 200,
@@ -6,4 +6,4 @@ exports.lambdaHandler = async (event, context) => {
             message: "Hello World CRON",
         }),
     };
-};
+}
