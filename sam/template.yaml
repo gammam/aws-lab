@@ -6,8 +6,9 @@ Resources:
   MyLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handler.lambdaHandler
+      Handler: handler.lambdaHandler
       Runtime: nodejs16.x
+      CodeUri: src/ # Specifica la directory che contiene il codice sorgente
       Events:
         ScheduledEvent:
           Type: Schedule
