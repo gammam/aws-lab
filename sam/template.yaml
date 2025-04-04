@@ -8,7 +8,7 @@ Resources:
     Properties:
       Handler: handler.lambdaHandler
       Runtime: nodejs16.x
-      CodeUri: src/ # Specifica la directory che contiene il codice sorgente
+      CodeUri: ../src/ # Specifica la directory che contiene il codice sorgente
       Events:
         ScheduledEvent:
           Type: Schedule
