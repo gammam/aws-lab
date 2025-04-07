@@ -5,51 +5,71 @@ class ReportService {
     this.logger = logger;
   }
 
-  async generateReport(jql, cafFieldId = 'customfield_10001') {
+  async generateReport(jql, cafFieldId = 'customfield_10001', targetCaf = null) {
     this.logger.info('Recupero ticket da Jira', { jql });
 
     let issues = await this.jiraService.fetchTickets(jql);
 
-    // Raggruppare ticket per CAF
-    const ticketsByCAF = {};
+    // Mappa per contenere i report per ogni CAF
+    const reportsByCAF = {};
 
     issues.forEach(issue => {
       const cafValue = issue.fields[cafFieldId] || 'Non Assegnato';
+      const email = issue.fields.reporter?.emailAddress || 'default@example.com'; // Email associata al CAF
 
-      if (!ticketsByCAF[cafValue]) {
-        ticketsByCAF[cafValue] = [];
+      if (!reportsByCAF[cafValue]) {
+        reportsByCAF[cafValue] = {
+          caf: cafValue,
+          email: email,
+          tickets: [],
+        };
       }
 
-      ticketsByCAF[cafValue].push({
+      reportsByCAF[cafValue].tickets.push({
         key: issue.key,
         summary: issue.fields.summary,
         status: issue.fields.status.name,
         priority: issue.fields.priority?.name || 'Non definita',
         created: issue.fields.created,
-        updated: issue.fields.updated
+        updated: issue.fields.updated,
       });
     });
 
     this.logger.info('Ticket raggruppati per CAF', {
-      totalCAFs: Object.keys(ticketsByCAF).length,
+      totalCAFs: Object.keys(reportsByCAF).length,
       totalTickets: issues.length,
       distribution: Object.fromEntries(
-        Object.entries(ticketsByCAF).map(([caf, tickets]) => [caf, tickets.length])
-      )
+        Object.entries(reportsByCAF).map(([caf, data]) => [caf, data.tickets.length])
+      ),
     });
 
-    // Generate HTML report
-    const htmlReport = this.generateHtmlReport(ticketsByCAF);
+    // Genera il report HTML per ogni CAF
+    for (const [caf, data] of Object.entries(reportsByCAF)) {
+      data.htmlReport = this.generateHtmlReport(caf, data.tickets);
+    }
 
-    return { ticketsByCAF, htmlReport };
+    // Se è specificato un targetCaf, restituisci solo il report per quel CAF
+    if (targetCaf) {
+      const targetReport = reportsByCAF[targetCaf];
+      if (!targetReport) {
+        throw new Error(`CAF "${targetCaf}" non trovato nei risultati.`);
+      }
+      return {
+        tickets: targetReport.tickets,
+        htmlReport: targetReport.htmlReport,
+      };
+    }
+
+    // Altrimenti, restituisci la mappa completa
+    return reportsByCAF;
   }
 
-  generateHtmlReport(ticketsByCAF) {
+  generateHtmlReport(caf, tickets) {
     let html = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Customer Report</title>
+        <title>Customer Report - CAF: ${caf}</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 20px; }
           table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
@@ -60,10 +80,6 @@ class ReportService {
       </head>
       <body>
         <h1>Customer Report</h1>
-    `;
-
-    for (const [caf, tickets] of Object.entries(ticketsByCAF)) {
-      html += `
         <h2>CAF: ${caf}</h2>
         <table>
           <thead>
@@ -77,28 +93,24 @@ class ReportService {
             </tr>
           </thead>
           <tbody>
-      `;
+    `;
 
-      tickets.forEach(ticket => {
-        html += `
-          <tr>
-            <td>${ticket.key}</td>
-            <td>${ticket.summary}</td>
-            <td>${ticket.status}</td>
-            <td>${ticket.priority}</td>
-            <td>${ticket.created}</td>
-            <td>${ticket.updated}</td>
-          </tr>
-        `;
-      });
-
+    tickets.forEach(ticket => {
       html += `
-          </tbody>
-        </table>
+        <tr>
+          <td>${ticket.key}</td>
+          <td>${ticket.summary}</td>
+          <td>${ticket.status}</td>
+          <td>${ticket.priority}</td>
+          <td>${ticket.created}</td>
+          <td>${ticket.updated}</td>
+        </tr>
       `;
-    }
+    });
 
     html += `
+          </tbody>
+        </table>
       </body>
       </html>
     `;
