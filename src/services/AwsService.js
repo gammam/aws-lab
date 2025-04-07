@@ -21,6 +21,4 @@ class AwsService {
     return this.s3;
   }
 }
-module.exports = {
-    AwsService
-  };
+module.exports = AwsService;

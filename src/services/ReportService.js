@@ -14,9 +14,11 @@ class ReportService {
     const reportsByCAF = {};
 
     issues.forEach(issue => {
-      const cafValue = issue.fields[cafFieldId] || 'Non Assegnato';
-      const email = issue.fields.reporter?.emailAddress || 'default@example.com'; // Email associata al CAF
-
+      this.logger.info('check type: ',issue)
+      const cafValue = issue.components ;
+      const email = 'default@example.com'; // Email associata al CAF
+ // console.log('CAF:', cafValue);
+      
       if (!reportsByCAF[cafValue]) {
         reportsByCAF[cafValue] = {
           caf: cafValue,
@@ -27,11 +29,9 @@ class ReportService {
 
       reportsByCAF[cafValue].tickets.push({
         key: issue.key,
-        summary: issue.fields.summary,
-        status: issue.fields.status.name,
-        priority: issue.fields.priority?.name || 'Non definita',
-        created: issue.fields.created,
-        updated: issue.fields.updated,
+        summary: issue.summary,
+        status: issue.status,
+        priority: issue.priority,
       });
     });
 
@@ -48,23 +48,13 @@ class ReportService {
       data.htmlReport = this.generateHtmlReport(caf, data.tickets);
     }
 
-    // Se è specificato un targetCaf, restituisci solo il report per quel CAF
-    if (targetCaf) {
-      const targetReport = reportsByCAF[targetCaf];
-      if (!targetReport) {
-        throw new Error(`CAF "${targetCaf}" non trovato nei risultati.`);
-      }
-      return {
-        tickets: targetReport.tickets,
-        htmlReport: targetReport.htmlReport,
-      };
-    }
-
     // Altrimenti, restituisci la mappa completa
     return reportsByCAF;
   }
 
   generateHtmlReport(caf, tickets) {
+
+    // Genera il report HTML
     let html = `
       <!DOCTYPE html>
       <html>
@@ -88,8 +78,6 @@ class ReportService {
               <th>Summary</th>
               <th>Status</th>
               <th>Priority</th>
-              <th>Created</th>
-              <th>Updated</th>
             </tr>
           </thead>
           <tbody>
@@ -102,8 +90,6 @@ class ReportService {
           <td>${ticket.summary}</td>
           <td>${ticket.status}</td>
           <td>${ticket.priority}</td>
-          <td>${ticket.created}</td>
-          <td>${ticket.updated}</td>
         </tr>
       `;
     });
@@ -119,6 +105,4 @@ class ReportService {
   }
 }
 
-module.exports = {
-  ReportService
-};
+module.exports = ReportService;

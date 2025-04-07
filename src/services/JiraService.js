@@ -15,12 +15,22 @@ class JiraService {
   }
 
   async fetchTickets(jql) {
-    const url = `/rest/api/3/search?jql=${encodeURIComponent(jql)}&maxResults=1000`;
+    const url = `/rest/api/3/search?jql=${encodeURIComponent(jql)}&maxResults=1000&fields=summary,status,priority,created,updated,reporter,components`;
 
     try {
       const response = await this.client.get(url);
-      this.logger.info('Ticket recuperati con successo', { count: response.data.issues.length });
-      return response.data.issues;
+  
+const tickets = response.data.issues.map(issue => ({
+        key: issue.key,
+        summary: issue.fields.summary,
+        status: issue.fields.status.name,
+        reporter: issue.fields.reporter?.emailAddress || 'Non disponibile',
+        priority: issue.fields.priority?.name || 'Non definita',
+        components: issue.fields.components.map(component => component.name).join(', ') || 'Nessun componente',
+      }));
+
+      this .logger.info('Ticket recuperati con successo', { count: tickets.length });
+      return tickets;
     } catch (error) {
       this.logger.error('Errore nel recupero dei ticket da Jira', error);
       throw new Error(`Impossibile recuperare i ticket: ${error.message}`);
@@ -28,6 +38,4 @@ class JiraService {
   }
 }
 
-module.exports = {
-    JiraService
-  };
+module.exports = JiraService;

@@ -1,13 +1,29 @@
 const AwsService = require('./services/AwsService');
+const MailtrapService = require('./services/MailtrapService'); // Nuovo servizio per Mailtrap
 const JiraService = require('./services/JiraService');
 const ReportService = require('./services/ReportService');
 const fs = require('fs');
 const path = require('path');
 const archiver = require('archiver'); // Importa il modulo archiver
+const { createLogger, format, transports } = require('winston');
+
+require('dotenv').config(); // Carica le variabili d'ambiente dal file .env
+
+const logger = createLogger({
+    level: 'info',
+    format: format.combine(
+        format.timestamp(),
+        format.printf(({ timestamp, level, message, ...meta }) => {
+            const metaString = Object.keys(meta).length ? JSON.stringify(meta) : '';
+            return `${timestamp} [${level.toUpperCase()}]: ${message} ${metaString}`;
+        })
+    ),
+    transports: [
+        new transports.Console(),
+    ],
+});
 
 async function handler(event, context) {
-    const logger = new Logger();
-    
     try {
         logger.info('Inizio generazione CustomerReport', { eventTime: event.time });
 
@@ -16,8 +32,11 @@ async function handler(event, context) {
         const jiraUsername = process.env.JIRA_USERNAME;
         const jiraApiToken = process.env.JIRA_API_TOKEN;
         const emailSender = process.env.EMAIL_SENDER;
-        const cafFieldId = process.env.CAF_FIELD_ID || 'customfield_10001';
-        const featureFlagEmail = process.env.FEATURE_FLAG_EMAIL === 'false'; // Feature flag
+        const emailServiceProvider = process.env.EMAIL_SERVICE_PROVIDER || 'aws'; // Feature flag
+        const cafFieldId = process.env.CAF_FIELD_ID || 'type';
+        const featureFlagEmail = process.env.FEATURE_FLAG_EMAIL  || 'true'; // Feature flag
+
+        console.log('emailSender', emailSender);
 
         if (!jiraBaseUrl || !jiraUsername || !jiraApiToken || !emailSender) {
             throw new Error('Variabili d\'ambiente mancanti o incomplete');
@@ -30,22 +49,29 @@ async function handler(event, context) {
         const reportService = new ReportService(jiraService, logger);
       
         // Genera i report raggruppati per CAF
-        const { ticketsByCAF } = await reportService.generateReport(jql, cafFieldId);
+        const ticketsByCAF  = await reportService.generateReport(jql, cafFieldId);
 
-        // Genera il report per CAF1
-        const { tickets, htmlReport } = await reportService.generateReport(jql, 'customfield_10001', 'CAF1');
-        console.log(htmlReport); // Mostra il report HTML per CAF1
-
+        console.log('ticketsByCAF', ticketsByCAF);
         if (featureFlagEmail) {
+            // Seleziona il servizio di invio email in base al feature flag
+            let emailService;
+            if (emailServiceProvider === 'aws') {
+                emailService = new AwsService();
+            } else if (emailServiceProvider === 'mailtrap') {
+                emailService = new MailtrapService();
+            } else {
+                throw new Error(`Servizio email non supportato: ${emailServiceProvider}`);
+            }
+
             // Invia un'email per ogni gruppo CAF
-            const awsService = new AwsService();
-            for (const [caf, tickets] of Object.entries(ticketsByCAF)) {
-                const htmlReport = reportService.generateHtmlReport({ [caf]: tickets });
+            for (const [caf, data] of Object.entries(ticketsByCAF)) {
+                
+                const htmlReport = data.htmlReport;
 
                 const emailParams = {
                     Source: emailSender,
                     Destination: {
-                        ToAddresses: [tickets[0]?.email || 'm.gammaldi@gmail.com'], // Usa un'email di default se non specificata
+                        ToAddresses: [data.email || 'm.gammaldi@gmail.com'], // Usa un'email di default se non specificata
                     },
                     Message: {
                         Subject: {
@@ -59,7 +85,7 @@ async function handler(event, context) {
                     },
                 };
 
-                await awsService.getSES().sendEmail(emailParams).promise();
+                await emailService.sendEmail(emailParams);
                 logger.info(`Email inviata con successo per CAF: ${caf}`);
             }
         } else {

@@ -1,4 +1,8 @@
-const { handler } = require( './src/index.js');
+require('dotenv').config(); // Carica le variabili d'ambiente dal file .env
+const { handler } = require('./src/index.js');
+
+
+
 
 // Simula un evento Lambda
 const event = {
